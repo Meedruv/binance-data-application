@@ -1,0 +1,9 @@
+flask
+requests
+pandas
+plotly
+celery
+redis
+flask-cors
+tqdm
+urllib3
