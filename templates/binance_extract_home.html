@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Binance Instruments</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f8;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 90%;
+            margin: 20px auto;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            background-color: #fff;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+    </style>
+</head>
+<body>
+    <h1>Binance Futures UM Instruments</h1>
+    
+    <div style="width:90%; margin:0 auto 10px; display:flex; gap:10px; align-items:center;">
+        <label for="filterInput">Search:</label>
+        <input id="filterInput" type="search" placeholder="Filter by instrument or date..." style="flex:1; padding:6px;">
+        <label for="datatypeSelect">Datatype:</label>
+        <select id="datatypeSelect" style="padding:6px;"><option value="">All</option></select>
+        <button id="showChartBtn" style="padding:6px;">Show chart</button>
+    </div>
+    <table id="instrumentsTable">
+        <thead>
+            <tr>
+                <th>Datatype</th>
+                <th>Instrument</th>
+                <th>From Date</th>
+                <th>To Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Data will be inserted here dynamically -->
+        </tbody>
+    </table>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+
+    <script>
+        const base_url = 'https://data.binance.vision/';
+        const base_prefix = 'data/futures/um/daily/';
+
+        async function loadInstruments() {
+                const datatypes = new Set();
+
+            try {
+                // Fetch data from Flask backend
+                const response = await fetch('http://127.0.0.1:5000/api/instruments_csv');
+                if (!response.ok) throw new Error('Failed to fetch data');
+                const data = await response.json();
+
+                const tbody = document.querySelector('#instrumentsTable tbody');
+                tbody.innerHTML = ''; // clear table
+
+                const fragment = document.createDocumentFragment(); // batch
+
+                data.forEach(item => {
+                    // collect datatype for dropdown
+                    datatypes.add(item.datatype);
+
+                    const tr = document.createElement('tr');
+                    tr.setAttribute('data-datatype', item.datatype);
+
+                    tr.innerHTML = `
+                        <td>${item.datatype}</td>
+                        <td><a href="${base_url}?prefix=${base_prefix}${encodeURIComponent(item.datatype)}/${encodeURIComponent(item.instrument)}/" target="_blank" rel="noopener">${item.instrument}</a></td>
+                        <td>${item.from_date}</td>
+                        <td>${item.to_date}</td>
+                    `;
+                    fragment.appendChild(tr);
+                });
+
+                tbody.appendChild(fragment); // single DOM update
+            
+                // added for filters
+                // Populate datatype dropdown
+                const datatypeSelect = document.getElementById('datatypeSelect');
+                // Remove any existing non-default options
+                Array.from(datatypeSelect.querySelectorAll('option')).forEach(opt => {
+                        if (opt.value !== '') opt.remove();
+                    });
+                Array.from(datatypes).sort().forEach(dt => {
+                    const opt = document.createElement('option');
+                    opt.value = dt;
+                    opt.textContent = dt;
+                    datatypeSelect.appendChild(opt);
+                });
+
+                // Wire up filter inputs
+                const filterInput = document.getElementById('filterInput');
+                const showChartBtn = document.getElementById('showChartBtn');
+
+                // Open chart for currently selected datatype
+                function openChartForSelectedDatatype() {
+                    const selected = datatypeSelect.value;
+                    if (!selected) {
+                        alert('Please select a datatype first');
+                        return;
+                    }
+                    const url = `/chart_datatype?data_type=${encodeURIComponent(selected)}`;
+                    window.open(url, '_blank');
+                }
+                showChartBtn.addEventListener('click', openChartForSelectedDatatype);
+
+                // Allow clicking the datatype link in the table (already present as an <a>)
+
+                function filterTable() {
+                    const q = filterInput.value.trim().toLowerCase();
+                    const selectedDatatype = datatypeSelect.value;
+                    const rows = tbody.querySelectorAll('tr');
+                    rows.forEach(r => {
+                        const cellsText = r.textContent.toLowerCase();
+                        const rowDatatype = r.getAttribute('data-datatype') || '';
+
+                        const matchesQuery = q === '' || cellsText.indexOf(q) !== -1;
+                        const matchesDatatype = selectedDatatype === '' || rowDatatype === selectedDatatype;
+
+                        r.style.display = (matchesQuery && matchesDatatype) ? '' : 'none';
+                    });
+                }
+                filterInput.addEventListener('input', filterTable);
+                datatypeSelect.addEventListener('change', filterTable);
+            } catch (error) {
+                console.error('Error loading instruments:', error);
+                const tbody = document.querySelector('#instrumentsTable tbody');
+                tbody.innerHTML = `<tr><td colspan="4">Failed to load data</td></tr>`;
+            }
+        }
+
+        // Load table on page load
+        window.onload = loadInstruments;
+// added until here for filters
+    </script>
+</body>
+</html>
