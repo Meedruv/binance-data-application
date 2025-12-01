@@ -13,9 +13,9 @@ celery_app = Celery(
 celery_app.conf.update(
     timezone='Asia/Singapore',
     beat_schedule={
-    # Runs every 5 minutes
-    "fetch-binance-every-1-minute1": {
-        "task": "tasks_binance.check_and_run",
+    # Runs every 1 minute
+    "fetch-binance-every-1-minute": {
+        "task": "tasks_binance.collect_binance",
         "schedule": 60,  # seconds
     }
     }
